@@ -26,12 +26,22 @@ struct Message {
     int size;
 } typedef Message;
 
-char *concat(char *s1, char *s2)
-{
+char *concat(char *s1, char *s2) {
     char *result = malloc(strlen(s1) + strlen(s2) + 1);
     strcpy(result, s1);
     strcat(result, s2);
     return result;
+}
+
+char *cur_time() {
+    time_t rawtime;
+    struct tm *timeinfo;
+
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
+    char *res = calloc(7, sizeof(char));
+    sprintf(res, "[%d:%d]", timeinfo->tm_hour, timeinfo->tm_min);
+    return res;
 }
 
 #endif

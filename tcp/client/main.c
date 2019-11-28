@@ -35,9 +35,11 @@ Message *cmd_mess() {
 
 void write_loop(int sockfd) {
     while (1) {
-        printf("You >> ");
+        char *time = cur_time();
+        printf("%s You >> ", time);
         Message *message = cmd_mess();
         write_mess(sockfd, message);
+        free(time);
         free(message->buffer);
         free(message);
     }
@@ -61,8 +63,10 @@ Message *read_mess(int sockfd) {
 void read_loop(sockfd) {
     while (1) {
         Message *message = read_mess(sockfd);
-        printf("\r%s\nYou >> ", message->buffer);
+        char *time = cur_time();
+        printf("\r%s %s\n%s You >> ", time, message->buffer, time);
         fflush(stdout);
+        free(time);
         free(message->buffer);
         free(message);
     }
