@@ -4,7 +4,7 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <unistd.h>
-#include <tcp/structs.h>
+#include "../structs.h"
 #include <string.h>
 
 
@@ -25,14 +25,17 @@ Message *cmd_mess() {
     message = calloc(1, sizeof(Message));
     message->buffer = malloc(MAX_MESS_SIZE * sizeof(char));
     bzero(message->buffer, MAX_MESS_SIZE);
-    //printf("\n%s:", user_name);
     fgets(message->buffer, MAX_MESS_SIZE, stdin);
+    char *pos = strrchr(message->buffer, '\n');
+    if (pos)
+        message->buffer[pos-message->buffer] = 0;
     message->size = (int) strlen(message->buffer);
     return message;
 }
 
 void write_loop(int sockfd) {
     while (1) {
+        printf("You >> ");
         Message *message = cmd_mess();
         write_mess(sockfd, message);
         free(message->buffer);
@@ -58,7 +61,8 @@ Message *read_mess(int sockfd) {
 void read_loop(sockfd) {
     while (1) {
         Message *message = read_mess(sockfd);
-        printf("%s", message->buffer);
+        printf("\r%s\nYou >> ", message->buffer);
+        fflush(stdout);
         free(message->buffer);
         free(message);
     }
@@ -105,6 +109,11 @@ int main(int argc, char *argv[]) {
 
     printf("Enter your name\n");
     write_mess(sockfd,cmd_mess());
+
+    Message *message = read_mess(sockfd);
+    printf("%s\n", message->buffer);
+    free(message);
+
     /*run read thread*/
     pthread_t read;
     pthread_create(&read, NULL, (void *) read_loop, (void *) sockfd);

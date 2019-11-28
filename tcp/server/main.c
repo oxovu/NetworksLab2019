@@ -7,7 +7,7 @@
 
 #include <string.h>
 #include <pthread.h>
-#include <tcp/structs.h>
+#include "../structs.h"
 
 Client *root;
 int sockfd;
@@ -27,12 +27,15 @@ Message *get_new_mess(char *buffer) {
 }
 
 void remove_client(Client *client) {
+    pthread_mutex_lock(&mutex);
     close(client->sockfd);
     if (client->prev != NULL && client->next != NULL) {
         client->prev->next = client->next;
         client->next->prev = client->prev;
     }
+    free(client->name);
     free(client);
+    pthread_mutex_unlock(&mutex);
     pthread_cancel(client->pthread);
 }
 
@@ -65,11 +68,11 @@ void handle_client(Client *client) {
 
     while (1) {
         Message *message = read_mess(client);
-        message->buffer = concat(concat(client->name, ">>"), message->buffer);
+        message->buffer = concat(concat(client->name, " >> "), message->buffer);
         message = get_new_mess(message->buffer);
 
-        printf("%s:%s\n", client->name, message->buffer);
-
+        printf("%s\n", message->buffer);
+        pthread_mutex_lock(&mutex);
         Client *n_client = root->next;
         while (n_client != NULL) {
             if (n_client != client && n_client->connection == true) {
@@ -77,6 +80,7 @@ void handle_client(Client *client) {
             }
             n_client = n_client->next;
         }
+        pthread_mutex_unlock(&mutex);
     }
 }
 
@@ -85,16 +89,15 @@ void server_exit(int sig) {
     if (client != NULL) {
         while (client->next != NULL) {
             client = client->next;
-            remove_client(client);
+            remove_client(client->prev);
         }
     }
     remove_client(client);
     close(sockfd);
     pthread_mutex_destroy(&mutex);
-    printf("server exit\n");
+    printf("\nserver exit\n");
     exit(0);
 }
-
 
 int main(int argc, char *argv[]) {
     int newsockfd;
@@ -114,7 +117,6 @@ int main(int argc, char *argv[]) {
         perror("setsockopt(SO_REUSEADDR) failed");
         exit(1);
     }
-
 
     if (sockfd < 0) {
         perror("ERROR opening socket");
@@ -146,17 +148,6 @@ int main(int argc, char *argv[]) {
     root->name = "Root";
 
     while (1) {
-        Client *new_client = root;
-        int i = 1;
-        while (new_client->next != NULL) {
-            printf("Client %d = %s", i, new_client->name);
-            i++;
-            new_client = new_client->next;
-        }
-        new_client->next = get_new_client();
-        new_client->next->prev = new_client;
-        new_client = new_client->next;
-
         /* Accept actual connection from the client */
 
         if ((newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen)) < 0) {
@@ -164,11 +155,25 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
 
+        Client *new_client = root;
+        int i = 1;
+        pthread_mutex_lock(&mutex);
+        while (new_client->next != NULL) {
+            printf("Client %d = %s\n", i, new_client->next->name);
+            i++;
+            new_client = new_client->next;
+        }
+
+        new_client->next = get_new_client();
+        new_client->next->prev = new_client;
+        new_client = new_client->next;
         new_client->sockfd = newsockfd;
 
         Message *name_mess = read_mess(new_client);
         new_client->name = name_mess->buffer;
-        printf("New client.name = %s accepted\n", new_client->name);
+        printf("New client %s\n", new_client->name);
+        write_mess(new_client, get_new_mess("Welcome"));
+        pthread_mutex_unlock(&mutex);
         pthread_create(&new_client->pthread, NULL, (void *(*)(void *)) handle_client, new_client);
     }
     return 0;
