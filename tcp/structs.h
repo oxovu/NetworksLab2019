@@ -44,4 +44,10 @@ char *cur_time() {
     return res;
 }
 
+struct Polls {
+    struct pollfd *pollfds;
+    int size;
+    int max_size;
+} typedef Polls;
+
 #endif
