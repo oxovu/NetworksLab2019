@@ -31,12 +31,11 @@ void remove_client(Client *client) {
         printf("remove NULL client\n");
         return;
     }
-    if (client->name == NULL) {
-        printf("remove not initialized client\n");
-        free(client);
-        return;
-    } else {
+    pthread_mutex_lock(&mutex);
+    if (client->name != NULL) {
         printf("remove %s ", client->name);
+    } else{
+        printf("remove not initialized client\n");
     }
     if (client->prev != NULL) {
         printf("prev = %s ", client->prev->name);
@@ -47,12 +46,13 @@ void remove_client(Client *client) {
         client->next->prev = client->prev;
     }
     printf("\n");
-    pthread_mutex_lock(&mutex);
+
     close(client->sockfd);
     free(client->name);
+    pthread_t cl_thread = client->pthread;
     free(client);
     pthread_mutex_unlock(&mutex);
-    pthread_cancel(client->pthread);
+    pthread_cancel(cl_thread);
 }
 
 void write_mess(Client *client, Message *message) {
@@ -72,7 +72,8 @@ Message *read_mess(Client *client) {
     }
 
     if (message->size == 0) {
-        message->size = 1;
+        printf("Removing client with msg.size = 0\n");
+        remove_client(client);
     }
     message->buffer = calloc(message->size, sizeof(char));
 
@@ -84,6 +85,11 @@ Message *read_mess(Client *client) {
 }
 
 void handle_client(Client *client) {
+    Message *name_mess = read_mess(client);
+    client->name = name_mess->buffer;
+    printf("New client %s\n", client->name);
+    write_mess(client, get_new_mess("Welcome"));
+
     client->connection = true;
 
     while (1) {
@@ -191,10 +197,6 @@ int main(int argc, char *argv[]) {
         new_client = new_client->next;
         new_client->sockfd = newsockfd;
 
-        Message *name_mess = read_mess(new_client);
-        new_client->name = name_mess->buffer;
-        printf("New client %s\n", new_client->name);
-        write_mess(new_client, get_new_mess("Welcome"));
         pthread_mutex_unlock(&mutex);
         pthread_create(&new_client->pthread, NULL, (void *(*)(void *)) handle_client, new_client);
     }

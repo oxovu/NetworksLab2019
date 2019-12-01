@@ -28,6 +28,10 @@ Message *cmd_mess() {
     Message *message;
     message = calloc(1, sizeof(Message));
     while (1) {
+        char *time = cur_time();
+        printf("%s You >> ", time);
+        free(time);
+        
         message->buffer = malloc(MAX_MESS_SIZE * sizeof(char));
         bzero(message->buffer, MAX_MESS_SIZE);
         fgets(message->buffer, MAX_MESS_SIZE, stdin);
