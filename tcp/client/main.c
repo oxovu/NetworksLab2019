@@ -6,6 +6,12 @@
 #include <unistd.h>
 #include "../structs.h"
 #include <string.h>
+#include <fcntl.h>
+#include <poll.h>
+#include <asm/errno.h>
+#include <errno.h>
+
+struct pollfd *fdreed;
 
 
 void write_mess(int sockfd, Message *message) {
@@ -31,7 +37,7 @@ Message *cmd_mess() {
         char *time = cur_time();
         printf("%s You >> ", time);
         free(time);
-        
+
         message->buffer = malloc(MAX_MESS_SIZE * sizeof(char));
         bzero(message->buffer, MAX_MESS_SIZE);
         fgets(message->buffer, MAX_MESS_SIZE, stdin);
@@ -64,27 +70,51 @@ void write_loop(int sockfd) {
 Message *read_mess(int sockfd) {
     Message *message = calloc(1, sizeof(Message));
     message->size = 0;
+
     if (read(sockfd, &message->size, sizeof(int)) <= 0) {
         perror("ERROR reading size");
         exit(1);
     }
+
+    int poll_status = poll(fdreed, 1, 5 * 60 * 1000);
     message->buffer = calloc(message->size, sizeof(char));
-    if (read(sockfd, message->buffer, MAX_MESS_SIZE) <= 0) {
-        perror("ERROR reading msg");
+
+    if (poll_status < 0) {
+        perror("ERROR ON POLL");
         exit(1);
+
+    } else if (poll_status == 0) {
+        printf("TIMEOUT WHILE BUFFER GETTING\n");
+
+    } else if (read(sockfd, message->buffer, message->size) <= 0) {
+        perror("ERROR reading message");
+        exit(1);
+
     }
     return message;
 }
 
 void read_loop(sockfd) {
-    while (1) {
-        Message *message = read_mess(sockfd);
-        char *time = cur_time();
-        printf("\r%s %s\n%s You >> ", time, message->buffer, time);
-        fflush(stdout);
-        free(time);
-        free(message->buffer);
-        free(message);
+    int poll_status = 0;
+
+    for (;;) {
+        poll_status = poll(fdreed, 1, 5 * 60 * 1000);
+        if (poll_status < 0) {
+            perror("ERROR ON POLL");
+            exit(1);
+        } else if (poll_status == 0) {
+            printf("TIMEOUT WHILE SIZE GETTING\n");
+        } else if (fdreed->revents == 0) {
+            continue;
+        } else if (fdreed->revents == POLLIN) {
+            Message *message = read_mess(sockfd);
+            char *time = cur_time();
+            printf("\r%s %s\n%s You >> ", time, message->buffer, time);
+            fflush(stdout);
+            free(time);
+            free(message->buffer);
+            free(message);
+        }
     }
 }
 
@@ -109,6 +139,12 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
+    if (fcntl(sockfd, F_SETFL, O_NONBLOCK) < 0) {
+        perror("ERROR making socket nonblock");
+        exit(1);
+    }
+
+
     server = gethostbyname(argv[1]);
 
     if (server == NULL) {
@@ -116,15 +152,22 @@ int main(int argc, char *argv[]) {
         exit(0);
     }
 
+    fdreed = calloc(1, sizeof(struct pollfd));
+    fdreed->fd = sockfd;
+    fdreed->events = POLLIN;
+
+
     bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     bcopy(server->h_addr, (char *) &serv_addr.sin_addr.s_addr, (size_t) server->h_length);
     serv_addr.sin_port = htons(portno);
 
     /* Now connect to the server */
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-        perror("ERROR connecting");
-        exit(1);
+    while (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        if (errno != EINPROGRESS) {
+            perror("Server isn't runing");
+            exit(1);
+        }
     }
 
     printf("Enter your name\n");
