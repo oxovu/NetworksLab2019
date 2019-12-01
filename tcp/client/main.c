@@ -9,7 +9,7 @@
 
 
 void write_mess(int sockfd, Message *message) {
-    if (message->size!=0) {
+    if (message->size != 0) {
         if (write(sockfd, &message->size, sizeof(int)) <= 0) {
             perror("ERROR writing size");
             exit(1);
@@ -19,7 +19,7 @@ void write_mess(int sockfd, Message *message) {
             perror("ERROR writing msg");
             exit(1);
         }
-    }else{
+    } else {
         return;
     }
 }
@@ -27,13 +27,21 @@ void write_mess(int sockfd, Message *message) {
 Message *cmd_mess() {
     Message *message;
     message = calloc(1, sizeof(Message));
-    message->buffer = malloc(MAX_MESS_SIZE * sizeof(char));
-    bzero(message->buffer, MAX_MESS_SIZE);
-    fgets(message->buffer, MAX_MESS_SIZE, stdin);
-    char *pos = strrchr(message->buffer, '\n');
-    if (pos)
-        message->buffer[pos-message->buffer] = 0;
-    message->size = (int) strlen(message->buffer);
+    while (1) {
+        message->buffer = malloc(MAX_MESS_SIZE * sizeof(char));
+        bzero(message->buffer, MAX_MESS_SIZE);
+        fgets(message->buffer, MAX_MESS_SIZE, stdin);
+        char *pos = strrchr(message->buffer, '\n');
+        if (pos)
+            message->buffer[pos - message->buffer] = 0;
+        message->size = (int) strlen(message->buffer);
+        if (message->size != 0) {
+            break;
+        } else {
+            printf("Empty line, try again\n");
+            free(message->buffer);
+        }
+    }
     return message;
 }
 
@@ -116,7 +124,7 @@ int main(int argc, char *argv[]) {
     }
 
     printf("Enter your name\n");
-    write_mess(sockfd,cmd_mess());
+    write_mess(sockfd,
 
     Message *message = read_mess(sockfd);
     printf("%s\n", message->buffer);
