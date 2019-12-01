@@ -9,14 +9,18 @@
 
 
 void write_mess(int sockfd, Message *message) {
-    if (write(sockfd, &message->size, sizeof(int)) <= 0) {
-        perror("ERROR writing size");
-        exit(1);
-    }
-    /* Write a response to the client */
-    if (write(sockfd, message->buffer, message->size) <= 0) {
-        perror("ERROR writing msg");
-        exit(1);
+    if (message->size!=0) {
+        if (write(sockfd, &message->size, sizeof(int)) <= 0) {
+            perror("ERROR writing size");
+            exit(1);
+        }
+        /* Write a response to the client */
+        if (write(sockfd, message->buffer, message->size) <= 0) {
+            perror("ERROR writing msg");
+            exit(1);
+        }
+    }else{
+        return;
     }
 }
 
