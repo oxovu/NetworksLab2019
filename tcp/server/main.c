@@ -4,7 +4,7 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <unistd.h>
-
+#include <signal.h>
 #include <string.h>
 #include <pthread.h>
 #include "../structs.h"
@@ -27,12 +27,14 @@ Message *get_new_mess(char *buffer) {
 }
 
 void remove_client(Client *client) {
-    pthread_mutex_lock(&mutex);
-    close(client->sockfd);
-    if (client->prev != NULL && client->next != NULL) {
+    if (client->prev != NULL) {
         client->prev->next = client->next;
+    }
+    if (client->next != NULL) {
         client->next->prev = client->prev;
     }
+    pthread_mutex_lock(&mutex);
+    close(client->sockfd);
     free(client->name);
     free(client);
     pthread_mutex_unlock(&mutex);
@@ -92,7 +94,7 @@ void server_exit(int sig) {
             remove_client(client->prev);
         }
     }
-    remove_client(client);
+//    remove_client(client);            //strange that its not needed
     close(sockfd);
     pthread_mutex_destroy(&mutex);
     printf("\nserver exit\n");
@@ -145,7 +147,7 @@ int main(int argc, char *argv[]) {
     clilen = sizeof(cli_addr);
 
     root = get_new_client();
-    root->name = "Root";
+    root->name = strdup("Root");
 
     while (1) {
         /* Accept actual connection from the client */
