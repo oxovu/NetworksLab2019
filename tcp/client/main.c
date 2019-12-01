@@ -124,7 +124,7 @@ int main(int argc, char *argv[]) {
     }
 
     printf("Enter your name\n");
-    write_mess(sockfd,
+    write_mess(sockfd, cmd_mess());
 
     Message *message = read_mess(sockfd);
     printf("%s\n", message->buffer);
