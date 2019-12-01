@@ -67,15 +67,19 @@ Message *read_mess(Client *client) {
     message->size = 0;
 
     if (read(client->sockfd, &message->size, sizeof(int)) <= 0) {
+        printf("Removing while get msg.size\n");
         remove_client(client);
     }
 
+    if (message->size == 0) {
+        message->size = 1;
+    }
     message->buffer = calloc(message->size, sizeof(char));
 
     if (read(client->sockfd, message->buffer, message->size) <= 0) {
+        printf("Removing while get msg.buffer(msg.size = %d)\n", message->size);
         remove_client(client);
     }
-
     return message;
 }
 
@@ -109,7 +113,6 @@ void server_exit(int sig) {
             remove_client(client->prev);
         }
     }
-    printf("\nDelete last client\n");
 //    remove_client(client);            //strange that its not needed
 
     close(sockfd);
