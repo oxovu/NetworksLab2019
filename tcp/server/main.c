@@ -27,12 +27,26 @@ Message *get_new_mess(char *buffer) {
 }
 
 void remove_client(Client *client) {
+    if (client == NULL) {
+        printf("remove NULL client\n");
+        return;
+    }
+    if (client->name == NULL) {
+        printf("remove not initialized client\n");
+        free(client);
+        return;
+    } else {
+        printf("remove %s ", client->name);
+    }
     if (client->prev != NULL) {
+        printf("prev = %s ", client->prev->name);
         client->prev->next = client->next;
     }
     if (client->next != NULL) {
+        printf("next = %s", client->next->name);
         client->next->prev = client->prev;
     }
+    printf("\n");
     pthread_mutex_lock(&mutex);
     close(client->sockfd);
     free(client->name);
@@ -87,6 +101,7 @@ void handle_client(Client *client) {
 }
 
 void server_exit(int sig) {
+    printf("SIGINT catched\n");
     Client *client = root;
     if (client != NULL) {
         while (client->next != NULL) {
@@ -94,7 +109,9 @@ void server_exit(int sig) {
             remove_client(client->prev);
         }
     }
+    printf("\nDelete last client\n");
 //    remove_client(client);            //strange that its not needed
+
     close(sockfd);
     pthread_mutex_destroy(&mutex);
     printf("\nserver exit\n");
