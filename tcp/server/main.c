@@ -234,6 +234,8 @@ int main(int argc, char *argv[]) {
                     if (name_mess != NULL) {
                         new_client->name = name_mess->buffer;
                         new_client->connection = true;
+                        Message welcome_message = {"Welcome", 7};
+                        write_mess(new_client, &welcome_message);
                         printf("New client: name = %s\n", new_client->name);
                     }
                 }
