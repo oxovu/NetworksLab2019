@@ -13,14 +13,16 @@
 
 Client *root;
 int sockfd;
-pthread_mutex_t mutex;
 Polls *polls;
 
 
 //TODO empty
 void add_new_client_to_polls(Client *client) {
-    fprintf(stderr, "add_new_client_to_polls empty\n");
-    exit(1);
+    polls->size++;
+    polls->pollfds = realloc(polls->pollfds, polls->size * sizeof(Client));
+    polls->pollfds[polls->size - 1].fd = client->sockfd;
+    polls->pollfds[polls->size - 1].events = POLL_IN;
+    client->id = polls->size - 1;
 }
 
 
@@ -39,13 +41,22 @@ Message *get_new_mess(char *buffer) {
 
 //TODO remove client from polls and realloc array
 void remove_client(Client *client) {
+
+
     if (client == NULL) {
         printf("remove NULL client\n");
         return;
     }
-    pthread_mutex_lock(&mutex);
+
+    for (int i = client->id; i < polls->size - 1; ++i) {
+        polls->pollfds[i] = polls->pollfds[i + 1];
+    }
+    polls->size--;
+    polls->pollfds = realloc(polls->pollfds, polls->size * sizeof(Client));
+
     if (client->name != NULL) {
         printf("remove %s ", client->name);
+        free(client->name);
     } else {
         printf("remove not initialized client\n");
     }
@@ -58,13 +69,8 @@ void remove_client(Client *client) {
         client->next->prev = client->prev;
     }
     printf("\n");
-
     close(client->sockfd);
-    free(client->name);
-    pthread_t cl_thread = client->pthread;
     free(client);
-    pthread_mutex_unlock(&mutex);
-    pthread_cancel(cl_thread);
 }
 
 void write_mess(Client *client, Message *message) {
@@ -81,37 +87,39 @@ Message *read_mess(Client *client) {
     if (read(client->sockfd, &message->size, sizeof(int)) <= 0) {
         printf("Removing while get msg.size\n");
         remove_client(client);
+        return NULL;
     }
 
     if (message->size == 0) {
         printf("Removing client with msg.size = 0\n");
         remove_client(client);
+        return NULL;
     }
     message->buffer = calloc(message->size, sizeof(char));
 
     if (read(client->sockfd, message->buffer, message->size) <= 0) {
         printf("Removing while get msg.buffer(msg.size = %d)\n", message->size);
         remove_client(client);
+        return NULL;
     }
     return message;
 }
 
 void handle_client(Client *client) {
     Message *message = read_mess(client);
-    message->buffer = concat(concat(client->name, " >> "), message->buffer);
-    message = get_new_mess(message->buffer);
+    if (message != NULL) {
+        message->buffer = concat(concat(client->name, " >> "), message->buffer);
+        message = get_new_mess(message->buffer);
 
-    printf("%s\n", message->buffer);
-    pthread_mutex_lock(&mutex);
-    Client *n_client = root->next;
-    while (n_client != NULL) {
-        if (n_client != client && n_client->connection == true) {
-            write_mess(n_client, message);
+        printf("%s\n", message->buffer);
+        Client *n_client = root->next;
+        while (n_client != NULL) {
+            if (n_client != client && n_client->connection == true) {
+                write_mess(n_client, message);
+            }
+            n_client = n_client->next;
         }
-        n_client = n_client->next;
     }
-    pthread_mutex_unlock(&mutex);
-
 }
 
 void server_exit(int sig) {
@@ -126,7 +134,6 @@ void server_exit(int sig) {
 //    remove_client(client);            //strange that its not needed
 
     close(sockfd);
-    pthread_mutex_destroy(&mutex);
     printf("\nserver exit\n");
     exit(0);
 }
@@ -185,11 +192,10 @@ int main(int argc, char *argv[]) {
     root->name = strdup("Root");
 
     polls = calloc(1, sizeof(Polls));
-    polls->max_size = 10;
-    polls->pollfds = calloc(polls->max_size, sizeof(struct pollfd));
+    polls->size = 1;
+    polls->pollfds = calloc(polls->size, sizeof(struct pollfd));
     polls->pollfds[0].fd = sockfd;
     polls->pollfds[0].events = POLLIN;
-    polls->size = 1;
 
 
     for (;;) {
@@ -204,8 +210,8 @@ int main(int argc, char *argv[]) {
         Client *processed_client = root->next;
         for (int i = 0; i < curr_size; i++) {
             if (i == 0) {//accepting new clients mode
+                printf("Accepting new clients\n");
                 for (;;) {
-
                     newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
 
                     if (newsockfd <= 0) {
@@ -221,13 +227,15 @@ int main(int argc, char *argv[]) {
                     new_client->prev = free_client;
 
                     new_client->sockfd = newsockfd;
-
-                    Message *name_mess = read_mess(new_client);
-                    new_client->name = name_mess->buffer;
-                    new_client->connection = true;
-                    printf("New client: name = %s\n", new_client->name);
-
                     add_new_client_to_polls(new_client);
+
+                    printf("Getting name\n");
+                    Message *name_mess = read_mess(new_client);
+                    if (name_mess != NULL) {
+                        new_client->name = name_mess->buffer;
+                        new_client->connection = true;
+                        printf("New client: name = %s\n", new_client->name);
+                    }
                 }
                 printf("All new clients accepted\n");
             } else {//processing clients mode

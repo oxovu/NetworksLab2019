@@ -8,7 +8,6 @@
 #include <string.h>
 #include <fcntl.h>
 #include <poll.h>
-#include <asm/errno.h>
 #include <errno.h>
 
 struct pollfd *fdreed;
@@ -143,6 +142,8 @@ int main(int argc, char *argv[]) {
         perror("ERROR making socket nonblock");
         exit(1);
     }
+
+    printf("Sockfd = %d initialized\n", sockfd);
 
 
     server = gethostbyname(argv[1]);

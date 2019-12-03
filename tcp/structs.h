@@ -17,8 +17,8 @@ struct Client {
     char *name;
     struct Client *prev;
     struct Client *next;
-    pthread_t pthread;
     bool connection;
+    int id;
 } typedef Client;
 
 struct Message {
@@ -47,7 +47,6 @@ char *cur_time() {
 struct Polls {
     struct pollfd *pollfds;
     int size;
-    int max_size;
 } typedef Polls;
 
 #endif
