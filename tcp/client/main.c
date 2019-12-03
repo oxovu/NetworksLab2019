@@ -57,7 +57,6 @@ Message *cmd_mess() {
 void write_loop(int sockfd) {
     while (1) {
         char *time = cur_time();
-        printf("%s You >> ", time);
         Message *message = cmd_mess();
         write_mess(sockfd, message);
         free(time);
@@ -174,9 +173,20 @@ int main(int argc, char *argv[]) {
     printf("Enter your name\n");
     write_mess(sockfd, cmd_mess());
 
-    Message *message = read_mess(sockfd);
-    printf("%s\n", message->buffer);
-    free(message);
+    int poll_status = poll(fdreed, 1, 5 * 60 * 1000);
+    if (poll_status < 0) {
+        perror("ERROR ON POLL");
+        exit(1);
+    } else if (poll_status == 0) {
+        printf("TIMEOUT WHILE SIZE GETTING\n");
+    } else if (fdreed->revents == 0) {
+
+    } else if (fdreed->revents == POLLIN) {
+        Message *message = read_mess(sockfd);
+        printf("%s\n", message->buffer);
+        free(message);
+
+    };
 
     /*run read thread*/
     pthread_t read;
