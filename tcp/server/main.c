@@ -15,8 +15,6 @@ Client *root;
 int sockfd;
 Polls *polls;
 
-
-//TODO empty
 void add_new_client_to_polls(Client *client) {
     polls->size++;
     polls->pollfds = realloc(polls->pollfds, polls->size * sizeof(Client));
@@ -39,10 +37,7 @@ Message *get_new_mess(char *buffer) {
     return message;
 }
 
-//TODO remove client from polls and realloc array
 void remove_client(Client *client) {
-
-
     if (client == NULL) {
         printf("remove NULL client\n");
         return;
@@ -241,7 +236,6 @@ int main(int argc, char *argv[]) {
                 }
                 printf("All new clients accepted\n");
             } else {//processing clients mode
-
                 if (polls->pollfds[i].revents == 0) {//nothing to do
                     processed_client = processed_client->next;
                     continue;
