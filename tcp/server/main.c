@@ -34,7 +34,7 @@ void remove_client(Client *client) {
     pthread_mutex_lock(&mutex);
     if (client->name != NULL) {
         printf("remove %s ", client->name);
-    } else{
+    } else {
         printf("remove not initialized client\n");
     }
     if (client->prev != NULL) {
@@ -55,9 +55,11 @@ void remove_client(Client *client) {
     pthread_cancel(cl_thread);
 }
 
-void write_mess(Client *client, Message *message) {
-    if (write(client->sockfd, &message->size, sizeof(int)) <= 0 ||
-        write(client->sockfd, message->buffer, message->size) <= 0) {
+void write_mess(Client *client, Message *message_text, Message *message_name) {
+    if (write(client->sockfd, &message_name->size, sizeof(int)) <= 0 ||
+        write(client->sockfd, message_name->buffer, message_name->size) <= 0 ||
+        write(client->sockfd, &message_text->size, sizeof(int)) <= 0 ||
+        write(client->sockfd, message_text->buffer, message_name->size) <= 0) {
         remove_client(client);
     }
 }
@@ -88,21 +90,19 @@ void handle_client(Client *client) {
     Message *name_mess = read_mess(client);
     client->name = name_mess->buffer;
     printf("New client %s\n", client->name);
-    write_mess(client, get_new_mess("Welcome"));
+    write_mess(client, get_new_mess("Welcome"), get_new_mess("Server"));
 
     client->connection = true;
 
     while (1) {
         Message *message = read_mess(client);
-        message->buffer = concat(concat(client->name, " >> "), message->buffer);
-        message = get_new_mess(message->buffer);
 
-        printf("%s\n", message->buffer);
+        printf("%s:%s\n", client->name, message->buffer);
         pthread_mutex_lock(&mutex);
         Client *n_client = root->next;
         while (n_client != NULL) {
             if (n_client != client && n_client->connection == true) {
-                write_mess(n_client, message);
+                write_mess(n_client, message, get_new_mess(client->name));
             }
             n_client = n_client->next;
         }

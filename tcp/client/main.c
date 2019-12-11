@@ -31,7 +31,7 @@ Message *cmd_mess() {
         char *time = cur_time();
         printf("%s You >> ", time);
         free(time);
-        
+
         message->buffer = malloc(MAX_MESS_SIZE * sizeof(char));
         bzero(message->buffer, MAX_MESS_SIZE);
         fgets(message->buffer, MAX_MESS_SIZE, stdin);
@@ -52,7 +52,6 @@ Message *cmd_mess() {
 void write_loop(int sockfd) {
     while (1) {
         char *time = cur_time();
-        printf("%s You >> ", time);
         Message *message = cmd_mess();
         write_mess(sockfd, message);
         free(time);
@@ -78,13 +77,17 @@ Message *read_mess(int sockfd) {
 
 void read_loop(sockfd) {
     while (1) {
-        Message *message = read_mess(sockfd);
+        Message *msg_client_name = read_mess(sockfd);
+        Message *msg_text = read_mess(sockfd);
+
         char *time = cur_time();
-        printf("\r%s %s\n%s You >> ", time, message->buffer, time);
+        printf("\r[%s]%s:%s\nYou >> ", time, msg_client_name->buffer, msg_text->buffer);
         fflush(stdout);
         free(time);
-        free(message->buffer);
-        free(message);
+        free(msg_text->buffer);
+        free(msg_text);
+        free(msg_client_name->buffer);
+        free(msg_client_name);
     }
 }
 
@@ -130,9 +133,13 @@ int main(int argc, char *argv[]) {
     printf("Enter your name\n");
     write_mess(sockfd, cmd_mess());
 
-    Message *message = read_mess(sockfd);
-    printf("%s\n", message->buffer);
-    free(message);
+    Message *msg_client_name = read_mess(sockfd);
+    Message *msg_text = read_mess(sockfd);
+    printf("%s:%s\n", msg_client_name->buffer, msg_text->buffer);
+    free(msg_client_name->buffer);
+    free(msg_client_name);
+    free(msg_text->buffer);
+    free(msg_text);
 
     /*run read thread*/
     pthread_t read;
