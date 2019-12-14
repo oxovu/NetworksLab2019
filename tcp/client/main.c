@@ -114,7 +114,7 @@ void read_loop(sockfd) {
             } else {
                 msg_text = read_mess(sockfd);
                 char *time = cur_time();
-                printf("\r%s %s:%s\n%s You >> ", time, msg_name->buffer, msg_text->buffer, time);
+                printf("\r%s %s >> %s\n%s You >> ", time, msg_name->buffer, msg_text->buffer, time);
                 fflush(stdout);
                 free(time);
                 free_message(msg_name);
