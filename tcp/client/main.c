@@ -29,7 +29,7 @@ Message *cmd_mess() {
     message = calloc(1, sizeof(Message));
     while (1) {
         char *time = cur_time();
-        printf("%s You >> ", time);
+        printf("[%s] You >> ", time);
         free(time);
 
         message->buffer = malloc(MAX_MESS_SIZE * sizeof(char));
@@ -83,7 +83,7 @@ void read_loop(sockfd) {
         msg_text = read_mess(sockfd);
         char *time = cur_time();
 
-        printf("\r[%s]%s:%s\nYou >> ", time, msg_client_name->buffer, msg_text->buffer);
+        printf("\r[%s] %s >> %s\n[%s] You >> ", time, msg_client_name->buffer, msg_text->buffer, time);
 
         fflush(stdout);
         free(time);
