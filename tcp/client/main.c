@@ -68,7 +68,7 @@ Message *read_mess(int sockfd) {
         exit(1);
     }
     message->buffer = calloc(message->size, sizeof(char));
-    if (read(sockfd, message->buffer, MAX_MESS_SIZE) <= 0) {
+    if (read(sockfd, message->buffer, message->size) <= 0) {
         perror("ERROR reading msg");
         exit(1);
     }
@@ -76,18 +76,19 @@ Message *read_mess(int sockfd) {
 }
 
 void read_loop(sockfd) {
+    Message *msg_client_name;
+    Message *msg_text;
     while (1) {
-        Message *msg_client_name = read_mess(sockfd);
-        Message *msg_text = read_mess(sockfd);
-
+        msg_client_name = read_mess(sockfd);
+        msg_text = read_mess(sockfd);
         char *time = cur_time();
+
         printf("\r[%s]%s:%s\nYou >> ", time, msg_client_name->buffer, msg_text->buffer);
+
         fflush(stdout);
         free(time);
-        free(msg_text->buffer);
-        free(msg_text);
-        free(msg_client_name->buffer);
-        free(msg_client_name);
+        free_message(msg_client_name);
+        free_message(msg_text);
     }
 }
 
@@ -136,10 +137,8 @@ int main(int argc, char *argv[]) {
     Message *msg_client_name = read_mess(sockfd);
     Message *msg_text = read_mess(sockfd);
     printf("%s:%s\n", msg_client_name->buffer, msg_text->buffer);
-    free(msg_client_name->buffer);
-    free(msg_client_name);
-    free(msg_text->buffer);
-    free(msg_text);
+    free_message(msg_client_name);
+    free_message(msg_text);
 
     /*run read thread*/
     pthread_t read;

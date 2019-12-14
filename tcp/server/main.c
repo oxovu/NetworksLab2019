@@ -22,7 +22,7 @@ Client *get_new_client() {
 Message *get_new_mess(char *buffer) {
     Message *message = calloc(1, sizeof(Message));
     message->size = strlen(buffer);
-    message->buffer = buffer;
+    message->buffer = strdup(buffer);
     return message;
 }
 
@@ -55,11 +55,11 @@ void remove_client(Client *client) {
     pthread_cancel(cl_thread);
 }
 
-void write_mess(Client *client, Message *message_text, Message *message_name) {
+void write_mess(Client *client, Message *message_name, Message *message_text) {
     if (write(client->sockfd, &message_name->size, sizeof(int)) <= 0 ||
         write(client->sockfd, message_name->buffer, message_name->size) <= 0 ||
         write(client->sockfd, &message_text->size, sizeof(int)) <= 0 ||
-        write(client->sockfd, message_text->buffer, message_name->size) <= 0) {
+        write(client->sockfd, message_text->buffer, message_text->size) <= 0) {
         remove_client(client);
     }
 }
@@ -87,22 +87,32 @@ Message *read_mess(Client *client) {
 }
 
 void handle_client(Client *client) {
-    Message *name_mess = read_mess(client);
-    client->name = name_mess->buffer;
+    Message *msg_name = read_mess(client);
+    Message *msg_text;
+
+    client->name = strdup(msg_name->buffer);
     printf("New client %s\n", client->name);
-    write_mess(client, get_new_mess("Welcome"), get_new_mess("Server"));
+    free_message(msg_name);
+
+    msg_name = get_new_mess("Server");
+    msg_text = get_new_mess("Welcome");
+    write_mess(client, msg_name, msg_text);
+    free_message(msg_name);
+    free_message(msg_text);
+
 
     client->connection = true;
 
     while (1) {
-        Message *message = read_mess(client);
+        msg_text = read_mess(client);
+        msg_name = get_new_mess(client->name);
 
-        printf("%s:%s\n", client->name, message->buffer);
+        printf("%s:%s\n", msg_name->buffer, msg_text->buffer);
         pthread_mutex_lock(&mutex);
         Client *n_client = root->next;
         while (n_client != NULL) {
             if (n_client != client && n_client->connection == true) {
-                write_mess(n_client, message, get_new_mess(client->name));
+                write_mess(n_client, msg_name, msg_text);
             }
             n_client = n_client->next;
         }
@@ -125,6 +135,33 @@ void server_exit(int sig) {
     pthread_mutex_destroy(&mutex);
     printf("\nserver exit\n");
     exit(0);
+}
+
+void accept_new_client(struct sockaddr_in *cli_addr, unsigned int *clilen) {
+    int newsockfd;
+    if ((newsockfd = accept(sockfd, (struct sockaddr *) cli_addr, clilen)) < 0) {
+        perror("ERROR on accept");
+        exit(1);
+    }
+
+    Client *new_client = root;
+    int i = 1;
+    pthread_mutex_lock(&mutex);
+    while (new_client->next != NULL) {
+        printf("Client %d = %s\n", i, new_client->next->name);
+        i++;
+        new_client = new_client->next;
+    }
+
+    new_client->next = get_new_client();
+    new_client->next->prev = new_client;
+    new_client = new_client->next;
+    new_client->sockfd = newsockfd;
+
+    pthread_mutex_unlock(&mutex);
+    pthread_create(&new_client->pthread, NULL, (void *(*)(void *)) handle_client, new_client);
+
+
 }
 
 int main(int argc, char *argv[]) {
@@ -177,28 +214,8 @@ int main(int argc, char *argv[]) {
 
     while (1) {
         /* Accept actual connection from the client */
+        accept_new_client(&cli_addr, &clilen);
 
-        if ((newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen)) < 0) {
-            perror("ERROR on accept");
-            exit(1);
-        }
-
-        Client *new_client = root;
-        int i = 1;
-        pthread_mutex_lock(&mutex);
-        while (new_client->next != NULL) {
-            printf("Client %d = %s\n", i, new_client->next->name);
-            i++;
-            new_client = new_client->next;
-        }
-
-        new_client->next = get_new_client();
-        new_client->next->prev = new_client;
-        new_client = new_client->next;
-        new_client->sockfd = newsockfd;
-
-        pthread_mutex_unlock(&mutex);
-        pthread_create(&new_client->pthread, NULL, (void *(*)(void *)) handle_client, new_client);
     }
     return 0;
 }
