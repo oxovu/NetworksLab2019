@@ -1,4 +1,6 @@
-
+cmake-build-debug
+client_linux
+server_linux
 # Created by https://www.gitignore.io/api/c++,latex,cmake,netbeans,qtcreator,visualstudio
 
 ### C++ ###
