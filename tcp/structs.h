@@ -46,7 +46,7 @@ char *cur_time() {
     time(&rawtime);
     timeinfo = localtime(&rawtime);
     char *res = calloc(7, sizeof(char));
-    sprintf(res, "[%d:%d]", timeinfo->tm_hour, timeinfo->tm_min);
+    sprintf(res, "%d:%d", timeinfo->tm_hour, timeinfo->tm_min);
     return res;
 }
 
