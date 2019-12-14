@@ -11,6 +11,12 @@
 #include <poll.h>
 #include "../structs.h"
 
+#define CHECK_POLL(i, msg, err_msg) printf(msg);\
+                        if (poll(&polls->pollfds[i], 1, -1) < 0) {\
+                            perror(err_msg);\
+                            return;\
+                        }
+
 Client *root;
 int sockfd;
 Polls *polls;
@@ -101,16 +107,24 @@ Message *read_mess(Client *client) {
 }
 
 void handle_client(Client *client) {
-    Message *message = read_mess(client);
-    if (message != NULL) {
-        message->buffer = concat(concat(client->name, " >> "), message->buffer);
-        message = get_new_mess(message->buffer);
+    printf("Processed client = %s, revent = %d\n", client->name,
+           polls->pollfds[client->id].revents);
 
-        printf("%s\n", message->buffer);
+
+    Message *msg_name = get_new_mess(client->name);
+
+    CHECK_POLL(client->id, "Checking poll in msg_text.size processing...\n", "ERROR on msg_text.size poll")
+    CHECK_POLL(client->id, "Checking poll in msg_text.buffer processing...\n", "ERROR on msg_text.buffer poll")
+    Message *msg_text = read_mess(client);
+
+
+    if (msg_text != NULL) {
+        printf("%s >> %s\n", msg_name->buffer, msg_text->buffer);
         Client *n_client = root->next;
         while (n_client != NULL) {
-            if (n_client != client && n_client->connection == true) {
-                write_mess(n_client, message);
+            if (n_client != client && n_client->connection) {
+                write_mess(n_client, msg_name);
+                write_mess(n_client, msg_text);
             }
             n_client = n_client->next;
         }
@@ -131,6 +145,37 @@ void server_exit(int sig) {
     close(sockfd);
     printf("\nserver exit\n");
     exit(0);
+}
+
+int accept_new_client(struct sockaddr_in *cli_addr, unsigned int *clilen) {
+    int newsockfd = accept(sockfd, (struct sockaddr *) cli_addr, clilen);
+
+    if (newsockfd <= 0) {
+        return -1;
+    }
+
+    Client *free_client = root;
+    while (free_client->next != NULL) {
+        free_client = free_client->next;
+    }
+    Client *new_client = get_new_client();
+    free_client->next = new_client;
+    new_client->prev = free_client;
+
+    new_client->sockfd = newsockfd;
+    add_new_client_to_polls(new_client);
+
+    printf("Getting name\n");
+    Message *name_mess = read_mess(new_client);
+    if (name_mess != NULL) {
+        new_client->name = name_mess->buffer;
+        new_client->connection = true;
+        Message welcome_message = {"Welcome", 7};
+        write_mess(new_client, &welcome_message);
+        printf("New client: name = %s\n", new_client->name);
+    }
+
+    return 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -207,31 +252,8 @@ int main(int argc, char *argv[]) {
             if (i == 0) {//accepting new clients mode
                 printf("Accepting new clients\n");
                 for (;;) {
-                    newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
-
-                    if (newsockfd <= 0) {
+                    if (accept_new_client(&cli_addr, &clilen) < 0) {
                         break;
-                    }
-
-                    Client *free_client = root;
-                    while (free_client->next != NULL) {
-                        free_client = free_client->next;
-                    }
-                    Client *new_client = get_new_client();
-                    free_client->next = new_client;
-                    new_client->prev = free_client;
-
-                    new_client->sockfd = newsockfd;
-                    add_new_client_to_polls(new_client);
-
-                    printf("Getting name\n");
-                    Message *name_mess = read_mess(new_client);
-                    if (name_mess != NULL) {
-                        new_client->name = name_mess->buffer;
-                        new_client->connection = true;
-                        Message welcome_message = {"Welcome", 7};
-                        write_mess(new_client, &welcome_message);
-                        printf("New client: name = %s\n", new_client->name);
                     }
                 }
                 printf("All new clients accepted\n");
@@ -241,14 +263,6 @@ int main(int argc, char *argv[]) {
                     continue;
 
                 } else if (polls->pollfds[i].revents == POLLIN) {//read message from clients
-                    /*awaiting for message.buffer after message.size sending*/
-                    printf("Checking poll in message processing...\n");
-                    if (poll(&polls->pollfds[i], 1, -1) < 0) {
-                        perror("ERROR on second poll");
-                        break;
-                    }
-                    printf("Processed client = %s, revent = %d\n", processed_client->name,
-                           polls->pollfds[i].revents);
                     handle_client(processed_client);
 
                 } else if (polls->pollfds[i].revents == POLL_ERR) {//bad cases

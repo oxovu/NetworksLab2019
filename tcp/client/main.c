@@ -60,8 +60,7 @@ void write_loop(int sockfd) {
         Message *message = cmd_mess();
         write_mess(sockfd, message);
         free(time);
-        free(message->buffer);
-        free(message);
+        free_message(message);
     }
 }
 
@@ -94,6 +93,9 @@ Message *read_mess(int sockfd) {
 
 void read_loop(sockfd) {
     int poll_status = 0;
+    bool name_got = false;
+    Message *msg_name;
+    Message *msg_text;
 
     for (;;) {
         poll_status = poll(fdreed, 1, 5 * 60 * 1000);
@@ -105,13 +107,20 @@ void read_loop(sockfd) {
         } else if (fdreed->revents == 0) {
             continue;
         } else if (fdreed->revents == POLLIN) {
-            Message *message = read_mess(sockfd);
-            char *time = cur_time();
-            printf("\r%s %s\n%s You >> ", time, message->buffer, time);
-            fflush(stdout);
-            free(time);
-            free(message->buffer);
-            free(message);
+            if (!name_got) {
+                msg_name = read_mess(sockfd);
+                name_got = true;
+
+            } else {
+                msg_text = read_mess(sockfd);
+                char *time = cur_time();
+                printf("\r%s %s:%s\n%s You >> ", time, msg_name->buffer, msg_text->buffer, time);
+                fflush(stdout);
+                free(time);
+                free_message(msg_name);
+                free_message(msg_text);
+                name_got = false;
+            }
         }
     }
 }
@@ -184,7 +193,7 @@ int main(int argc, char *argv[]) {
     } else if (fdreed->revents == POLLIN) {
         Message *message = read_mess(sockfd);
         printf("%s\n", message->buffer);
-        free(message);
+        free_message(message);
 
     };
 
