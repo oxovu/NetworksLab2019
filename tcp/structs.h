@@ -26,6 +26,12 @@ struct Message {
     int size;
 } typedef Message;
 
+void free_message(Message *message) {
+    free(message->buffer);
+    free(message);
+
+}
+
 char *concat(char *s1, char *s2) {
     char *result = malloc(strlen(s1) + strlen(s2) + 1);
     strcpy(result, s1);
