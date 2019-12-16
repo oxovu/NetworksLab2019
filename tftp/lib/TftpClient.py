@@ -1,4 +1,4 @@
-from lib.PacketManager import *
+import lib.PacketManager as pm
 
 import os
 import socket
@@ -33,7 +33,7 @@ class Client:
         #          |  01   |  Filename  |   0  |    Mode    |   0  |
         #          -----------------------------------------------
 
-        self.sendPacket = pack_rrq(self.fileName)
+        self.sendPacket = pm.pack_rrq(self.fileName)
         self.clientSocket.sendto(self.sendPacket, (self.serverIP, self.serverPort))
 
         getFile = None
@@ -48,7 +48,7 @@ class Client:
         errCount = 0
 
         while True:
-            opcode = Opcodes.TIMEOUT.value
+            opcode = pm.Opcodes.TIMEOUT.value
             data = None
             remoteSocket = None
 
@@ -56,12 +56,12 @@ class Client:
             while errCount < 4:
                 try:
                     data, remoteSocket = self.clientSocket.recvfrom(4096)
-                    opcode = unpack_opcode(data)
+                    opcode = pm.unpack_opcode(data)
                     errCount = 0
                     break
                 except:
                     self.clientSocket.sendto(self.sendPacket, (self.serverIP, self.serverPort))
-                    opcode = Opcodes.TIMEOUT.value
+                    opcode = pm.Opcodes.TIMEOUT.value
                     errCount += 1
 
             # --------------------- Get new block of file from server -------------------------
@@ -70,11 +70,11 @@ class Client:
             #         | 03    |   Block #  |    Data    |
             #          ---------------------------------
 
-            if opcode == Opcodes.DATA.value:
-                blockNo, dataPayload = unpack_data_packet(data)
+            if opcode == pm.Opcodes.DATA.value:
+                blockNo, dataPayload = pm.unpack_data_packet(data)
 
                 if blockNo != countBlock:
-                    self.clientSocket.sendto(ErrorPacket.errBlockNo.value, remoteSocket)
+                    self.clientSocket.sendto(pm.ErrorPacket.errBlockNo.value, remoteSocket)
                     print('Receive wrong block. Continue')
                     continue
 
@@ -85,7 +85,7 @@ class Client:
                 try:
                     getFile.write(dataPayload)
                 except:
-                    self.clientSocket.sendto(ErrorPacket.errFileWrite.value, remoteSocket)
+                    self.clientSocket.sendto(pm.ErrorPacket.errFileWrite.value, remoteSocket)
                     print('Can not write data. Session closed.')
                     getFile.close()
                     break
@@ -94,7 +94,7 @@ class Client:
                 sys.stdout.write('\rget %s :%s bytes.' \
                                  % (self.fileName, currDataSize))
 
-                self.sendPacket = pack_ack(blockNo)
+                self.sendPacket = pm.pack_ack(blockNo)
                 self.clientSocket.sendto(self.sendPacket, remoteSocket)
 
                 if len(dataPayload) < self._chunkSize:
@@ -105,8 +105,8 @@ class Client:
 
 
             # --------------------- Error processing -------------------------
-            elif opcode == Opcodes.ERROR.value:
-                errCode, errString = unpack_error(data)
+            elif opcode == pm.Opcodes.ERROR.value:
+                errCode, errString = pm.unpack_error(data)
 
                 print('Received error code %s : %s' \
                       % (str(errCode), bytes.decode(errString)))
@@ -115,7 +115,7 @@ class Client:
                 break
 
 
-            elif opcode == Opcodes.TIMEOUT.value:
+            elif opcode == pm.Opcodes.TIMEOUT.value:
                 print('Timeout. Session closed.')
                 try:
                     getFile.close()
@@ -149,7 +149,7 @@ class Client:
         #          |  02   |  Filename  |   0  |    Mode    |   0  |
         #          -----------------------------------------------
 
-        self.clientSocket.sendto(pack_wrq(fileName), (self.serverIP, self.serverPort))
+        self.clientSocket.sendto(pm.pack_wrq(fileName), (self.serverIP, self.serverPort))
 
         putFile = None
         try:
@@ -165,7 +165,7 @@ class Client:
         while True:
 
             data, remoteSocket = self.clientSocket.recvfrom(4096)
-            Opcode = unpack_opcode(data)
+            Opcode = pm.unpack_opcode(data)
 
             # --------------------- Send new block of file to server -------------------------
             #          2 bytes    2 bytes
@@ -173,7 +173,7 @@ class Client:
             #          | 04    |   Block #  |
             #          --------------------
 
-            if Opcode == Opcodes.ACK:
+            if Opcode == pm.Opcodes.ACK:
 
                 if endFlag == True:
                     putFile.close()
@@ -181,10 +181,10 @@ class Client:
                                      % (self.fileName, currDataSize))
                     break
 
-                blockNo = unpack_blockno(data)
+                blockNo = pm.unpack_blockno(data)
 
                 if blockNo != countBlock:
-                    self.clientSocket.sendto(ErrorPacket.errBlockNo.value, remoteSocket)
+                    self.clientSocket.sendto(pm.ErrorPacket.errBlockNo.value, remoteSocket)
                     print('Receive wrong block. Session closed.')
                     putFile.close()
                     break
@@ -195,7 +195,7 @@ class Client:
 
                 dataChunk = putFile.read(self._chunkSize)
 
-                self.clientSocket.sendto(pack_data_chunk(dataChunk, blockNo), remoteSocket)
+                self.clientSocket.sendto(pm.pack_data_chunk(dataChunk, blockNo), remoteSocket)
 
                 currDataSize += len(dataChunk)
                 sys.stdout.write('\rput %s :%s bytes.' % (self.fileName, currDataSize))
@@ -209,8 +209,8 @@ class Client:
 
 
             # --------------------- Error processing -------------------------
-            elif Opcode == Opcodes.ERROR:
-                errCode, errString = unpack_error(data)
+            elif Opcode == pm.Opcodes.ERROR:
+                errCode, errString = pm.unpack_error(data)
                 print('Receive error code %s : %s' \
                       % (str(errCode), bytes.decode(errString)))
                 putFile.close()
