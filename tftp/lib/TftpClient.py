@@ -14,7 +14,7 @@ class Client:
         self.clientSocket.settimeout(5)
         self._chunkSize = 512
 
-    # ----------------------------------- PUT -----------------------------------------------
+    # ----------------------------------- GET -----------------------------------------------
     def get(self, fileName, localFileName=None):
         if localFileName == None:
             self.localFilePath = os.path.join('.', fileName)
@@ -103,7 +103,6 @@ class Client:
                     getFile.close()
                     break
 
-
             # --------------------- Error processing -------------------------
             elif opcode == pm.Opcodes.ERROR.value:
                 errCode, errString = pm.unpack_error(data)
@@ -114,15 +113,12 @@ class Client:
                 os.remove(getFile.name)
                 break
 
-
             elif opcode == pm.Opcodes.TIMEOUT.value:
                 print('Timeout. Session closed.')
                 try:
                     getFile.close()
                 except:
                     break
-
-
             else:
                 print('Unknown error. Session closed.')
                 try:
@@ -152,6 +148,7 @@ class Client:
         self.clientSocket.sendto(pm.pack_wrq(fileName), (self.serverIP, self.serverPort))
 
         putFile = None
+
         try:
             putFile = open(self.localFilePath, 'rb')
         except:
@@ -207,7 +204,6 @@ class Client:
                 if len(dataChunk) < self._chunkSize:
                     endFlag = True
 
-
             # --------------------- Error processing -------------------------
             elif Opcode == pm.Opcodes.ERROR:
                 errCode, errString = pm.unpack_error(data)
@@ -215,10 +211,7 @@ class Client:
                       % (str(errCode), bytes.decode(errString)))
                 putFile.close()
                 break
-
-
             else:
-
                 self.clear('Unknown error. Session closed.')
                 try:
                     putFile.close()
