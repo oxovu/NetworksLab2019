@@ -24,7 +24,7 @@ class Client:
         self.fileName = fileName
 
         if os.path.isfile(self.localFilePath):
-            print(self.localFilePath.split("/")[-1] + ' is alredy exist. Replacing.')
+            print(self.localFilePath.split("/")[-1] + ' already exists. Replacing.')
             os.remove(self.localFilePath)
 
         # --------------------- Send read request to server -------------------------
@@ -75,7 +75,7 @@ class Client:
 
                 if blockNo != countBlock:
                     self.clientSocket.sendto(pm.ErrorPacket.errBlockNo.value, remoteSocket)
-                    print('Receive wrong block. Continue')
+                    print('Received wrong block. Continue')
                     continue
 
                 countBlock += 1
@@ -136,7 +136,7 @@ class Client:
             self.fileName = targetFileName
 
         if not os.path.isfile(self.localFilePath):
-            print(self.fileName + ' not exist. Can not start.')
+            print(self.fileName + ' does not exist. Can not start.')
             pass
 
         # --------------------- Send write request to server -------------------------

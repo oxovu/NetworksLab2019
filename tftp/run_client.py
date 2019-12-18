@@ -4,7 +4,14 @@ import sys
 
 def get_command_from_cmd():
     while True:
-        command = input("\nINPUT FORMAT 'GET/PUT FILE_NAME' or 'EXIT'\n")
+        command = input("%s------------ AVAILABLE SERVER COMMANDS ----------\n" \
+                        "%s" \
+                        "get file_name [local_file_name]\n" \
+                        "put file_name [local_file_name]\n" \
+                        "exit\n" \
+                        "%s-------------------------------------------------\n%s" % (
+                            COLOR_DIV_LINES, COLOR_COMMAND, COLOR_DIV_LINES, colorama.Fore.RESET))
+
         command_list = command.split(" ")
         if command_list[0].lower() == "exit":
             exit(0)
