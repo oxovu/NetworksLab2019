@@ -1,5 +1,9 @@
 from lib.TftpClient import Client
 import sys
+import colorama
+
+COLOR_DIV_LINES = colorama.Fore.MAGENTA
+COLOR_COMMAND = colorama.Fore.GREEN
 
 
 def get_command_from_cmd():
