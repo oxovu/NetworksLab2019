@@ -41,7 +41,7 @@ class Client:
             getFile = open(self.localFilePath, 'wb')
         except:
             print(self.fileName + ' can not open.')
-            pass
+            return
 
         currDataSize = 0
         countBlock = 1
@@ -119,6 +119,7 @@ class Client:
                     getFile.close()
                 except:
                     break
+                break
             else:
                 print('Unknown error. Session closed.')
                 try:
@@ -136,24 +137,18 @@ class Client:
             self.fileName = targetFileName
 
         if not os.path.isfile(self.localFilePath):
-            print(self.fileName + ' does not exist. Can not start.')
-            pass
+            print(self.fileName + ' not exist. Can not start.')
+            return None
 
         # --------------------- Send write request to server -------------------------
-        #          2 bytes    string   1 byte     string   1 byte
-        #          -----------------------------------------------
-        #          |  02   |  Filename  |   0  |    Mode    |   0  |
-        #          -----------------------------------------------
-
-        self.clientSocket.sendto(pm.pack_wrq(fileName), (self.serverIP, self.serverPort))
-
-        putFile = None
+        WRQpacket = pm.pack_wrq(self.fileName)
+        self.clientSocket.sendto(WRQpacket, (self.serverIP, self.serverPort))
 
         try:
             putFile = open(self.localFilePath, 'rb')
         except:
             print(self.localFilePath + ' can not open.')
-            pass
+            return None
 
         endFlag = False
         currDataSize = 0
@@ -165,12 +160,7 @@ class Client:
             Opcode = pm.unpack_opcode(data)
 
             # --------------------- Send new block of file to server -------------------------
-            #          2 bytes    2 bytes
-            #          --------------------
-            #          | 04    |   Block #  |
-            #          --------------------
-
-            if Opcode == pm.Opcodes.ACK:
+            if Opcode == pm.Opcodes.ACK.value:
 
                 if endFlag == True:
                     putFile.close()
@@ -192,10 +182,12 @@ class Client:
 
                 dataChunk = putFile.read(self._chunkSize)
 
-                self.clientSocket.sendto(pm.pack_data_chunk(dataChunk, blockNo), remoteSocket)
+                DATApacket = pm.pack_data_chunk(dataChunk, blockNo)
+                self.clientSocket.sendto(DATApacket, remoteSocket)
 
                 currDataSize += len(dataChunk)
-                sys.stdout.write('\rput %s :%s bytes.' % (self.fileName, currDataSize))
+                sys.stdout.write('\rput %s :%s bytes.' \
+                                 % (self.fileName, currDataSize))
 
                 countBlock += 1
                 if countBlock == 65536:
@@ -205,14 +197,15 @@ class Client:
                     endFlag = True
 
             # --------------------- Error processing -------------------------
-            elif Opcode == pm.Opcodes.ERROR:
+            elif Opcode == pm.Opcodes.ERROR.value:
                 errCode, errString = pm.unpack_error(data)
                 print('Receive error code %s : %s' \
                       % (str(errCode), bytes.decode(errString)))
                 putFile.close()
                 break
+
+            # ----------------------- Undefined -------------------------------
             else:
-                self.clear('Unknown error. Session closed.')
                 try:
                     putFile.close()
                 except:
